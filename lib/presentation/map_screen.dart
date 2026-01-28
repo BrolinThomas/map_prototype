@@ -35,9 +35,11 @@ class _MapViewState extends State<MapView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Map'),
-        backgroundColor: Colors.blue,
+        title: const Text('Proximity Map'),
+        backgroundColor: Colors.cyan,
         foregroundColor: Colors.white,
+        centerTitle: true,
+        automaticallyImplyLeading: false,
       ),
       body: BlocBuilder<MapBloc, MapState>(
         builder: (context, state) {
@@ -79,6 +81,8 @@ class _MapViewState extends State<MapView> {
                     initialZoom: 15.0,
                     minZoom: 5.0,
                     maxZoom: 18.0,
+                    onTap: (tapPosition, point) =>
+                        _addMarkerAtPosition(context, point),
                   ),
                   children: [
                     TileLayer(
@@ -136,22 +140,57 @@ class _MapViewState extends State<MapView> {
                 ),
                 // Legend
                 Positioned(top: 16, right: 16, child: _buildLegend(state)),
-                // Add marker button
-                Positioned(
-                  bottom: 80,
-                  right: 16,
-                  child: FloatingActionButton(
-                    heroTag: 'add_marker',
-                    onPressed: () =>
-                        _addMarkerAtCurrentLocation(context, state),
-                    child: const Icon(Icons.add_location),
+                // Instruction banner
+                // Positioned(
+                //   top: 16,
+                //   left: 16,
+                //   child: Container(
+                //     padding: const EdgeInsets.symmetric(
+                //       horizontal: 12,
+                //       vertical: 8,
+                //     ),
+                //     decoration: BoxDecoration(
+                //       color: Colors.blue,
+                //       borderRadius: BorderRadius.circular(8),
+                //       boxShadow: [
+                //         BoxShadow(
+                //           color: Colors.black.withValues(alpha: 0.2),
+                //           blurRadius: 4,
+                //         ),
+                //       ],
+                //     ),
+                //     child: const Row(
+                //       mainAxisSize: MainAxisSize.min,
+                //       children: [
+                //         Icon(Icons.touch_app, color: Colors.white, size: 20),
+                //         SizedBox(width: 8),
+                //         Text(
+                //           'Tap map to add marker',
+                //           style: TextStyle(color: Colors.white, fontSize: 14),
+                //         ),
+                //       ],
+                //     ),
+                //   ),
+                // ),
+                // Clear all markers button (only show if there are markers)
+                if (state.markers.isNotEmpty)
+                  Positioned(
+                    bottom: 16,
+                    left: 16,
+                    child: FloatingActionButton.extended(
+                      heroTag: 'clear',
+                      onPressed: () => _showClearConfirmation(context),
+                      backgroundColor: Colors.white,
+                      icon: const Icon(Icons.delete_forever_outlined),
+                      label: const Text('Clear All'),
+                    ),
                   ),
-                ),
                 // Center on user button
                 Positioned(
                   bottom: 16,
                   right: 16,
                   child: FloatingActionButton(
+                    backgroundColor: Colors.white,
                     heroTag: 'center',
                     onPressed: () {
                       if (state.currentLocation != null) {
@@ -221,31 +260,51 @@ class _MapViewState extends State<MapView> {
     );
   }
 
-  void _addMarkerAtCurrentLocation(BuildContext context, MapLoaded state) {
-    if (state.currentLocation == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Waiting for location...')));
-      return;
-    }
-
-    // Add marker 500m north of current location for demo
-    final newMarkerPosition = LatLng(
-      state.currentLocation!.latitude + 0.005,
-      state.currentLocation!.longitude,
-    );
-
+  void _addMarkerAtPosition(BuildContext context, LatLng position) {
     final marker = MapMarker(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
-      position: newMarkerPosition,
+      position: position,
       radius: 1000, // 1km radius
-      label: 'Marker ${state.markers.length + 1}',
+      label: 'Marker',
     );
 
     context.read<MapBloc>().add(MapAddMarker(marker));
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Marker added!')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Marker added!'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+  }
+
+  void _showClearConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Clear All Markers'),
+        content: const Text('Are you sure you want to remove all markers?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              context.read<MapBloc>().add(MapClearAllMarkers());
+              Navigator.of(dialogContext).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('All markers cleared!'),
+                  duration: Duration(seconds: 1),
+                ),
+              );
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Clear All'),
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -15,6 +15,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     on<MapLocationUpdated>(_onLocationUpdated);
     on<MapAddMarker>(_onAddMarker);
     on<MapRemoveMarker>(_onRemoveMarker);
+    on<MapClearAllMarkers>(_onClearAllMarkers);
   }
 
   Future<void> _onInitialize(
@@ -98,6 +99,13 @@ class MapBloc extends Bloc<MapEvent, MapState> {
         markerProximity: updatedProximity,
       ),
     );
+  }
+
+  void _onClearAllMarkers(MapClearAllMarkers event, Emitter<MapState> emit) {
+    if (state is! MapLoaded) return;
+
+    final currentState = state as MapLoaded;
+    emit(currentState.copyWith(markers: [], markerProximity: {}));
   }
 
   @override

@@ -19,3 +19,5 @@ class MapRemoveMarker extends MapEvent {
   final String markerId;
   MapRemoveMarker(this.markerId);
 }
+
+class MapClearAllMarkers extends MapEvent {}
