@@ -21,3 +21,10 @@ class MapRemoveMarker extends MapEvent {
 }
 
 class MapClearAllMarkers extends MapEvent {}
+
+class MapGetDirections extends MapEvent {
+  final String markerId;
+  MapGetDirections(this.markerId);
+}
+
+class MapClearDirections extends MapEvent {}

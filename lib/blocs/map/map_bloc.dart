@@ -3,19 +3,23 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../models/map_marker.dart';
 import '../../models/proximity_zone.dart';
 import '../../services/location_service.dart';
+import '../../services/routing_service.dart';
 import 'map_event.dart';
 import 'map_state.dart';
 
 class MapBloc extends Bloc<MapEvent, MapState> {
   final LocationService locationService;
+  final RoutingService routingService;
   StreamSubscription? _locationSubscription;
 
-  MapBloc(this.locationService) : super(MapInitial()) {
+  MapBloc(this.locationService, this.routingService) : super(MapInitial()) {
     on<MapInitialize>(_onInitialize);
     on<MapLocationUpdated>(_onLocationUpdated);
     on<MapAddMarker>(_onAddMarker);
     on<MapRemoveMarker>(_onRemoveMarker);
     on<MapClearAllMarkers>(_onClearAllMarkers);
+    on<MapGetDirections>(_onGetDirections);
+    on<MapClearDirections>(_onClearDirections);
   }
 
   Future<void> _onInitialize(
@@ -105,7 +109,50 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     if (state is! MapLoaded) return;
 
     final currentState = state as MapLoaded;
-    emit(currentState.copyWith(markers: [], markerProximity: {}));
+    emit(
+      currentState.copyWith(
+        markers: [],
+        markerProximity: {},
+        clearRoute: true,
+        clearSelection: true,
+      ),
+    );
+  }
+
+  Future<void> _onGetDirections(
+    MapGetDirections event,
+    Emitter<MapState> emit,
+  ) async {
+    if (state is! MapLoaded) return;
+
+    final currentState = state as MapLoaded;
+    if (currentState.currentLocation == null) return;
+
+    final marker = currentState.markers.firstWhere(
+      (m) => m.id == event.markerId,
+    );
+
+    // Get route from current location to marker
+    final route = await routingService.getRoute(
+      currentState.currentLocation!,
+      marker.position,
+    );
+
+    if (route != null) {
+      emit(
+        currentState.copyWith(
+          activeRoute: route,
+          selectedMarkerId: event.markerId,
+        ),
+      );
+    }
+  }
+
+  void _onClearDirections(MapClearDirections event, Emitter<MapState> emit) {
+    if (state is! MapLoaded) return;
+
+    final currentState = state as MapLoaded;
+    emit(currentState.copyWith(clearRoute: true, clearSelection: true));
   }
 
   @override

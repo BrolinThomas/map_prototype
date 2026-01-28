@@ -8,6 +8,7 @@ import '../blocs/map/map_state.dart';
 import '../models/map_marker.dart';
 import '../models/proximity_zone.dart';
 import '../services/location_service.dart';
+import '../services/routing_service.dart';
 
 class MapScreen extends StatelessWidget {
   const MapScreen({super.key});
@@ -15,7 +16,8 @@ class MapScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => MapBloc(LocationService())..add(MapInitialize()),
+      create: (context) =>
+          MapBloc(LocationService(), RoutingService())..add(MapInitialize()),
       child: const MapView(),
     );
   }
@@ -106,6 +108,19 @@ class _MapViewState extends State<MapView> {
                         );
                       }).toList(),
                     ),
+                    // Draw route if active
+                    if (state.activeRoute != null)
+                      PolylineLayer(
+                        polylines: [
+                          Polyline(
+                            points: state.activeRoute!.routePoints,
+                            strokeWidth: 5.0,
+                            color: Colors.blue,
+                            borderStrokeWidth: 2.0,
+                            borderColor: Colors.white,
+                          ),
+                        ],
+                      ),
                     // Draw marker pins
                     MarkerLayer(
                       markers: [
@@ -123,14 +138,19 @@ class _MapViewState extends State<MapView> {
                           ),
                         // Custom markers
                         ...state.markers.map((marker) {
+                          final isSelected =
+                              state.selectedMarkerId == marker.id;
                           return Marker(
                             point: marker.position,
                             width: 40,
                             height: 40,
-                            child: const Icon(
-                              Icons.location_pin,
-                              color: Colors.red,
-                              size: 40,
+                            child: GestureDetector(
+                              onTap: () => _onMarkerTapped(context, marker.id),
+                              child: Icon(
+                                Icons.location_pin,
+                                color: isSelected ? Colors.green : Colors.red,
+                                size: isSelected ? 50 : 40,
+                              ),
                             ),
                           );
                         }),
@@ -200,6 +220,14 @@ class _MapViewState extends State<MapView> {
                     child: const Icon(Icons.my_location),
                   ),
                 ),
+                // Route info panel
+                if (state.activeRoute != null)
+                  Positioned(
+                    bottom: 90,
+                    left: 16,
+                    right: 16,
+                    child: _buildRouteInfoPanel(context, state),
+                  ),
               ],
             );
           }
@@ -305,6 +333,155 @@ class _MapViewState extends State<MapView> {
           ),
         ],
       ),
+    );
+  }
+
+  void _onMarkerTapped(BuildContext context, String markerId) {
+    final bloc = context.read<MapBloc>();
+    final state = bloc.state;
+
+    if (state is MapLoaded) {
+      if (state.selectedMarkerId == markerId) {
+        // Deselect if already selected
+        bloc.add(MapClearDirections());
+      } else {
+        // Show bottom sheet with options
+        _showMarkerOptions(context, markerId);
+      }
+    }
+  }
+
+  void _showMarkerOptions(BuildContext context, String markerId) {
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetContext) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.directions, color: Colors.blue),
+              title: const Text('Get Directions'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                context.read<MapBloc>().add(MapGetDirections(markerId));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Calculating route...'),
+                    duration: Duration(seconds: 1),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text('Remove Marker'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                context.read<MapBloc>().add(MapRemoveMarker(markerId));
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRouteInfoPanel(BuildContext context, MapLoaded state) {
+    final route = state.activeRoute!;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 8),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Route Information',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () {
+                  context.read<MapBloc>().add(MapClearDirections());
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _routeInfoItem(
+                  Icons.straighten,
+                  'Distance',
+                  route.formattedDistance,
+                ),
+              ),
+              Expanded(
+                child: _routeInfoItem(
+                  Icons.access_time,
+                  'Duration',
+                  route.formattedDuration,
+                ),
+              ),
+              Expanded(
+                child: _routeInfoItem(
+                  Icons.schedule,
+                  'ETA',
+                  route.estimatedArrival,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                // Could add turn-by-turn navigation here
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Follow the blue route on the map'),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.navigation),
+              label: const Text('Start Navigation'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _routeInfoItem(IconData icon, String label, String value) {
+    return Column(
+      children: [
+        Icon(icon, size: 24, color: Colors.blue),
+        const SizedBox(height: 4),
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+      ],
     );
   }
 }
