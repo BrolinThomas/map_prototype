@@ -37,14 +37,16 @@ class MapBloc extends Bloc<MapEvent, MapState> {
     final currentLocation = await locationService.getCurrentLocation();
     emit(
       MapLoaded(
-        currentLocation: currentLocation,
+        currentLocation: currentLocation?.position,
+        currentHeading: currentLocation?.heading,
+        currentSpeed: currentLocation?.speed,
         markers: [],
         markerProximity: {},
       ),
     );
 
     _locationSubscription = locationService.getLocationStream().listen(
-      (location) => add(MapLocationUpdated(location)),
+      (locationUpdate) => add(MapLocationUpdated(locationUpdate)),
     );
   }
 
@@ -56,7 +58,7 @@ class MapBloc extends Bloc<MapEvent, MapState> {
 
     for (final marker in currentState.markers) {
       final distance = locationService.calculateDistance(
-        event.location,
+        event.locationUpdate.position,
         marker.position,
       );
       markerProximity[marker.id] = ProximityZone.fromDistance(distance);
@@ -64,7 +66,9 @@ class MapBloc extends Bloc<MapEvent, MapState> {
 
     emit(
       currentState.copyWith(
-        currentLocation: event.location,
+        currentLocation: event.locationUpdate.position,
+        currentHeading: event.locationUpdate.heading,
+        currentSpeed: event.locationUpdate.speed,
         markerProximity: markerProximity,
       ),
     );
@@ -81,7 +85,15 @@ class MapBloc extends Bloc<MapEvent, MapState> {
 
     // Recalculate proximity for new marker
     if (currentState.currentLocation != null) {
-      add(MapLocationUpdated(currentState.currentLocation!));
+      add(
+        MapLocationUpdated(
+          LocationUpdate(
+            position: currentState.currentLocation!,
+            heading: currentState.currentHeading,
+            speed: currentState.currentSpeed,
+          ),
+        ),
+      );
     }
   }
 

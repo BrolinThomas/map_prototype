@@ -124,17 +124,13 @@ class _MapViewState extends State<MapView> {
                     // Draw marker pins
                     MarkerLayer(
                       markers: [
-                        // User location marker
+                        // User location marker with directional arrow
                         if (state.currentLocation != null)
                           Marker(
                             point: state.currentLocation!,
-                            width: 40,
-                            height: 40,
-                            child: const Icon(
-                              Icons.my_location,
-                              color: Colors.blue,
-                              size: 40,
-                            ),
+                            width: 50,
+                            height: 50,
+                            child: _buildUserLocationMarker(state),
                           ),
                         // Custom markers
                         ...state.markers.map((marker) {
@@ -364,13 +360,7 @@ class _MapViewState extends State<MapView> {
               title: const Text('Get Directions'),
               onTap: () {
                 Navigator.pop(sheetContext);
-                context.read<MapBloc>().add(MapGetDirections(markerId));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Calculating route...'),
-                    duration: Duration(seconds: 1),
-                  ),
-                );
+                _getDirectionsToMarker(context, markerId);
               },
             ),
             ListTile(
@@ -389,6 +379,16 @@ class _MapViewState extends State<MapView> {
 
   Widget _buildRouteInfoPanel(BuildContext context, MapLoaded state) {
     final route = state.activeRoute!;
+    final currentSpeed = state.currentSpeed ?? 0.0;
+
+    // Use real-time speed for ETA if available
+    final duration = currentSpeed > 0.5
+        ? route.getUpdatedDuration(currentSpeed)
+        : route.formattedDuration;
+
+    final eta = currentSpeed > 0.5
+        ? route.getUpdatedETA(currentSpeed)
+        : route.estimatedArrival;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -407,7 +407,7 @@ class _MapViewState extends State<MapView> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Route Information',
+                'Navigation',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               IconButton(
@@ -429,27 +429,31 @@ class _MapViewState extends State<MapView> {
                 ),
               ),
               Expanded(
-                child: _routeInfoItem(
-                  Icons.access_time,
-                  'Duration',
-                  route.formattedDuration,
-                ),
+                child: _routeInfoItem(Icons.access_time, 'Duration', duration),
               ),
-              Expanded(
-                child: _routeInfoItem(
-                  Icons.schedule,
-                  'ETA',
-                  route.estimatedArrival,
-                ),
-              ),
+              Expanded(child: _routeInfoItem(Icons.schedule, 'ETA', eta)),
             ],
           ),
+          if (currentSpeed > 0.5)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.speed, size: 16, color: Colors.grey),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${(currentSpeed * 3.6).toStringAsFixed(0)} km/h',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
           const SizedBox(height: 12),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: () {
-                // Could add turn-by-turn navigation here
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Follow the blue route on the map'),
@@ -457,7 +461,7 @@ class _MapViewState extends State<MapView> {
                 );
               },
               icon: const Icon(Icons.navigation),
-              label: const Text('Start Navigation'),
+              label: const Text('Following Route'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
@@ -482,6 +486,86 @@ class _MapViewState extends State<MapView> {
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
       ],
+    );
+  }
+
+  Widget _buildUserLocationMarker(MapLoaded state) {
+    // If we have heading and are in navigation mode, show directional arrow
+    if (state.activeRoute != null && state.currentHeading != null) {
+      return Transform.rotate(
+        angle:
+            state.currentHeading! *
+            (3.14159 / 180), // Convert degrees to radians
+        child: const Icon(
+          Icons.navigation,
+          color: Colors.blue,
+          size: 40,
+          shadows: [Shadow(color: Colors.white, blurRadius: 4)],
+        ),
+      );
+    }
+
+    // Otherwise show regular location pin
+    return const Icon(Icons.my_location, color: Colors.blue, size: 40);
+  }
+
+  void _getDirectionsToMarker(BuildContext context, String markerId) async {
+    final bloc = context.read<MapBloc>();
+    final state = bloc.state;
+
+    if (state is! MapLoaded || state.currentLocation == null) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Calculating route...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    // Get directions
+    bloc.add(MapGetDirections(markerId));
+
+    // Wait a bit for route to be calculated
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    // Zoom to show full route
+    final updatedState = bloc.state;
+    if (updatedState is MapLoaded && updatedState.activeRoute != null) {
+      _zoomToRoute(updatedState);
+    }
+  }
+
+  void _zoomToRoute(MapLoaded state) {
+    if (state.activeRoute == null || state.currentLocation == null) return;
+
+    final route = state.activeRoute!;
+    final allPoints = [state.currentLocation!, ...route.routePoints];
+
+    // Calculate bounds
+    double minLat = allPoints.first.latitude;
+    double maxLat = allPoints.first.latitude;
+    double minLng = allPoints.first.longitude;
+    double maxLng = allPoints.first.longitude;
+
+    for (final point in allPoints) {
+      if (point.latitude < minLat) minLat = point.latitude;
+      if (point.latitude > maxLat) maxLat = point.latitude;
+      if (point.longitude < minLng) minLng = point.longitude;
+      if (point.longitude > maxLng) maxLng = point.longitude;
+    }
+
+    // Add padding
+    final latPadding = (maxLat - minLat) * 0.2;
+    final lngPadding = (maxLng - minLng) * 0.2;
+
+    final bounds = LatLngBounds(
+      LatLng(minLat - latPadding, minLng - lngPadding),
+      LatLng(maxLat + latPadding, maxLng + lngPadding),
+    );
+
+    // Fit bounds to map
+    _mapController.fitCamera(
+      CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(50)),
     );
   }
 }

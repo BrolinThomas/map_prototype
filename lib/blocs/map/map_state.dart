@@ -13,6 +13,8 @@ class MapPermissionDenied extends MapState {}
 
 class MapLoaded extends MapState {
   final LatLng? currentLocation;
+  final double? currentHeading; // Direction user is facing (0-360)
+  final double? currentSpeed; // Speed in m/s
   final List<MapMarker> markers;
   final Map<String, ProximityZone> markerProximity;
   final RouteInfo? activeRoute;
@@ -20,6 +22,8 @@ class MapLoaded extends MapState {
 
   MapLoaded({
     this.currentLocation,
+    this.currentHeading,
+    this.currentSpeed,
     required this.markers,
     required this.markerProximity,
     this.activeRoute,
@@ -28,6 +32,8 @@ class MapLoaded extends MapState {
 
   MapLoaded copyWith({
     LatLng? currentLocation,
+    double? currentHeading,
+    double? currentSpeed,
     List<MapMarker>? markers,
     Map<String, ProximityZone>? markerProximity,
     RouteInfo? activeRoute,
@@ -37,6 +43,8 @@ class MapLoaded extends MapState {
   }) {
     return MapLoaded(
       currentLocation: currentLocation ?? this.currentLocation,
+      currentHeading: currentHeading ?? this.currentHeading,
+      currentSpeed: currentSpeed ?? this.currentSpeed,
       markers: markers ?? this.markers,
       markerProximity: markerProximity ?? this.markerProximity,
       activeRoute: clearRoute ? null : (activeRoute ?? this.activeRoute),

@@ -1,13 +1,13 @@
-import 'package:latlong2/latlong.dart';
 import '../../models/map_marker.dart';
+import '../../services/location_service.dart';
 
 sealed class MapEvent {}
 
 class MapInitialize extends MapEvent {}
 
 class MapLocationUpdated extends MapEvent {
-  final LatLng location;
-  MapLocationUpdated(this.location);
+  final LocationUpdate locationUpdate;
+  MapLocationUpdated(this.locationUpdate);
 }
 
 class MapAddMarker extends MapEvent {

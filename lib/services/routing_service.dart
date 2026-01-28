@@ -36,17 +36,22 @@ class RoutingService {
         final distance = (route['distance'] as num).toDouble();
         final duration = (route['duration'] as num).toDouble();
 
+        // Calculate average speed from route data
+        final avgSpeedMps = distance / duration; // meters per second
+        final avgSpeedKmh = avgSpeedMps * 3.6; // convert to km/h
+
         return RouteInfo(
           routePoints: routePoints,
           distanceInMeters: distance,
           durationInSeconds: duration,
           summary: 'Via ${route['legs'][0]['summary'] ?? 'main roads'}',
+          averageSpeedKmh: avgSpeedKmh,
         );
       }
 
       return null;
     } catch (e) {
-      print('Error getting route: $e');
+      // Error getting route
       return null;
     }
   }
@@ -98,7 +103,7 @@ class RoutingService {
 
       return null;
     } catch (e) {
-      print('Error getting route from ORS: $e');
+      // Error getting route from ORS
       return null;
     }
   }
