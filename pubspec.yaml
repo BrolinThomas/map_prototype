@@ -1,0 +1,85 @@
+name: map_prototype
+description: "A new Flutter project."
+
+publish_to: 'none'
+
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  dio: ^5.9.0
+  #storage
+  flutter_secure_storage: ^10.0.0
+  shared_preferences: ^2.5.4
+  #state management
+  flutter_bloc: ^9.1.1
+  #map
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+  #location
+  geolocator: ^13.0.2
+  permission_handler: ^11.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+
+flutter:
+
+
+  uses-material-design: true
+
+  # To add assets to your application, add an assets section, like this:
+  assets:
+    - assets/images/
+  
+
+  # An image asset can refer to one or more resolution-specific "variants", see
+  # https://flutter.dev/to/resolution-aware-images
+
+  # For details regarding adding assets from package dependencies, see
+  # https://flutter.dev/to/asset-from-package
+
+  # To add custom fonts to your application, add a fonts section here,
+  # in this "flutter" section. Each entry in this list should have a
+  # "family" key with the font family name, and a "fonts" key with a
+  # list giving the asset and other descriptors for the font. For
+  # example:
+  fonts:
+    - family: SF PRO DISPLAY
+      fonts:
+        - asset: assets/font/SFPRODISPLAYREGULAR.OTF
+        - asset: assets/font/SFPRODISPLAYMEDIUM.OTF
+          weight: 500
+        - asset: assets/font/SFPRODISPLAYBOLD.OTF
+          weight: 700
+        - asset: assets/font/SFPRODISPLAYLIGHTITALIC.OTF
+          weight: 300
+          style: italic
+        - asset: assets/font/SFPRODISPLAYTHINITALIC.OTF
+          weight: 100
+          style: italic
+        - asset: assets/font/SFPRODISPLAYULTRALIGHTITALIC.OTF
+          weight: 200
+          style: italic
+        - asset: assets/font/SFPRODISPLAYSEMIBOLDITALIC.OTF
+          weight: 600
+          style: italic
+        - asset: assets/font/SFPRODISPLAYHEAVYITALIC.OTF
+          weight: 800
+          style: italic
+        - asset: assets/font/SFPRODISPLAYBLACKITALIC.OTF
+          weight: 900
+          style: italic
